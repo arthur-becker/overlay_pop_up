@@ -26,11 +26,11 @@ import io.flutter.plugin.common.MethodChannel.Result
 
 
 class OverlayPopUpPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
-    BasicMessageChannel.MessageHandler<Any?> {
+    BasicMessageChannel.MessageHandler<Any?>, PlatformCommunicator {
     private var channel: MethodChannel? = null
     private var context: Context? = null
     private var activity: Activity? = null
-    private var messageChannel: BasicMessageChannel<Any?>? = null
+    private var appMessageChannel: BasicMessageChannel<Any?>? = null
 
     private var overlayService: OverlayService? = null
 
@@ -38,6 +38,7 @@ class OverlayPopUpPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
             val binder = service as OverlayService.OverlayServiceBinder
             overlayService = binder.getService()
+            overlayService?.setAppCommunicator(this@OverlayPopUpPlugin)
             println("Service connected")
         }
 
@@ -49,7 +50,8 @@ class OverlayPopUpPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
     companion object {
         const val OVERLAY_CHANNEL_NAME = "overlay_pop_up"
-        const val OVERLAY_MESSAGE_CHANNEL_NAME = "overlay_pop_up_mssg"
+        const val OVERLAY_MESSAGE_CHANNEL_NAME = "overlay_message_channel"
+        const val APP_MESSAGE_CHANNEL_NAME = "app_message_channel"
         const val CACHE_ENGINE_ID = "overlay_pop_up_engine_id"
         const val OVERLAY_POP_UP_ENTRY_BY_DEFAULT = "overlayPopUp"
         const val PERMISSION_CODE = 1996
@@ -59,12 +61,12 @@ class OverlayPopUpPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, OVERLAY_CHANNEL_NAME)
         channel?.setMethodCallHandler(this)
         this.context = flutterPluginBinding.applicationContext
-        messageChannel = BasicMessageChannel<Any?>(
+        appMessageChannel = BasicMessageChannel<Any?>(
             flutterPluginBinding.binaryMessenger,
-            OVERLAY_MESSAGE_CHANNEL_NAME,
+            APP_MESSAGE_CHANNEL_NAME,
             JSONMessageCodec.INSTANCE
         )
-        messageChannel?.setMessageHandler(this)
+        appMessageChannel?.setMessageHandler(this)
     }
 
     override fun onMethodCall(call: MethodCall, result: Result) {
@@ -83,7 +85,7 @@ class OverlayPopUpPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel?.setMethodCallHandler(null)
-        messageChannel?.setMessageHandler(null)
+        appMessageChannel?.setMessageHandler(null)
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
@@ -145,12 +147,11 @@ class OverlayPopUpPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     }
 
     override fun onMessage(message: Any?, reply: BasicMessageChannel.Reply<Any?>) {
-        val overlayMessageChannel = BasicMessageChannel(
-            FlutterEngineCache.getInstance().get(OverlayPopUpPlugin.CACHE_ENGINE_ID)!!.dartExecutor,
-            OVERLAY_MESSAGE_CHANNEL_NAME,
-            JSONMessageCodec.INSTANCE
-        )
-        overlayMessageChannel.send(message, reply)
+        overlayService?.sendMessage(message, reply)
+    }
+
+    override public fun sendMessage(message: Any?, reply: BasicMessageChannel.Reply<Any?>) {
+        appMessageChannel?.send(message, reply)
     }
 
     private fun updateOverlaySize(call: MethodCall, result: Result) {
@@ -197,5 +198,6 @@ class OverlayPopUpPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     }
 
     override fun onDetachedFromActivity() {
+        overlayService?.setAppCommunicator(null)
     }
 }

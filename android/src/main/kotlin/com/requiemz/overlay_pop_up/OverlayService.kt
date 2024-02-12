@@ -24,7 +24,7 @@ import io.flutter.plugin.common.JSONMessageCodec
 import io.flutter.plugin.common.MethodChannel
 
 
-class OverlayService : Service(), BasicMessageChannel.MessageHandler<Any?>, View.OnTouchListener {
+class OverlayService : Service(), BasicMessageChannel.MessageHandler<Any?>, View.OnTouchListener, PlatformCommunicator {
     companion object {
         var isActive: Boolean = false
         var windowManager: WindowManager? = null
@@ -35,6 +35,7 @@ class OverlayService : Service(), BasicMessageChannel.MessageHandler<Any?>, View
 
     private var channel: MethodChannel? = null
     private lateinit var overlayMessageChannel: BasicMessageChannel<Any?>
+    private var appCommunicator: PlatformCommunicator? = null
 
     private val binder = OverlayServiceBinder()
 
@@ -121,15 +122,19 @@ class OverlayService : Service(), BasicMessageChannel.MessageHandler<Any?>, View
             OverlayPopUpPlugin.OVERLAY_MESSAGE_CHANNEL_NAME,
             JSONMessageCodec.INSTANCE
         )
+        overlayMessageChannel.setMessageHandler(this)
     }
 
     override fun onMessage(message: Any?, reply: BasicMessageChannel.Reply<Any?>) {
-        val overlayMessageChannel = BasicMessageChannel(
-            FlutterEngineCache.getInstance().get(OverlayPopUpPlugin.CACHE_ENGINE_ID)!!.dartExecutor,
-            OverlayPopUpPlugin.OVERLAY_MESSAGE_CHANNEL_NAME,
-            JSONMessageCodec.INSTANCE
-        )
-        overlayMessageChannel.send(message, reply)
+        appCommunicator?.sendMessage(message, reply)
+    }
+
+    public fun setAppCommunicator(appCommunicator: PlatformCommunicator?) {
+        this.appCommunicator = appCommunicator
+    }
+
+    override public fun sendMessage(message: Any?, reply: BasicMessageChannel.Reply<Any?>) {
+        overlayMessageChannel?.send(message, reply)
     }
 
     override fun onTouch(v: View?, event: MotionEvent?): Boolean {

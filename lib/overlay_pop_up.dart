@@ -6,17 +6,15 @@ import 'package:flutter/services.dart';
 class OverlayPopUp {
   OverlayPopUp._();
 
-  static final StreamController _mssgController = StreamController.broadcast();
-
   static const _methodChannel = MethodChannel('overlay_pop_up');
-  static const _messageChannel = BasicMessageChannel('overlay_pop_up_mssg', JSONMessageCodec());
 
   ///
   /// returns true when overlay permission is alreary granted
   /// if permission is not granted then open app settings
   ///
   static Future<bool> requestPermission() async {
-    final result = await _methodChannel.invokeMethod<bool?>('requestPermission');
+    final result =
+        await _methodChannel.invokeMethod<bool?>('requestPermission');
     return result ?? false;
   }
 
@@ -94,7 +92,8 @@ class OverlayPopUp {
   /// returns the current overlay position if enable drag is enabled
   ///
   static Future<Map?> getOverlayPosition() async {
-    final result = await _methodChannel.invokeMethod<Map?>('getOverlayPosition');
+    final result =
+        await _methodChannel.invokeMethod<Map?>('getOverlayPosition');
     return result;
   }
 
@@ -105,7 +104,8 @@ class OverlayPopUp {
     int? height,
     int? width,
   }) async {
-    final result = await _methodChannel.invokeMethod<bool?>('updateOverlaySize', {
+    final result =
+        await _methodChannel.invokeMethod<bool?>('updateOverlaySize', {
       /// the new value for layout height
       'height': height,
 
@@ -113,39 +113,6 @@ class OverlayPopUp {
       'width': width,
     });
     return result ?? false;
-  }
-
-  ///
-  /// share dynamic data to overlay
-  ///
-  static Future<void> sendToOverlay(dynamic data) async {
-    await _messageChannel.send(data);
-  }
-
-  ///
-  /// receive the data from flutter
-  ///
-  static Stream<dynamic>? get dataListener {
-    _messageChannel.setMessageHandler((mssg) async {
-      if (_mssgController.isClosed) return '';
-      _mssgController.add(mssg);
-      return mssg;
-    });
-
-    if (_mssgController.isClosed) return null;
-    return _mssgController.stream;
-  }
-
-  ///
-  /// drain and close data stream controller
-  ///
-  static void stopDataLIstener() {
-    try {
-      _mssgController.stream.drain();
-      _mssgController.close();
-    } catch (e) {
-      debugPrint('[OverlayPopUp] Something wen wrong when close overlay pop up: $e');
-    }
   }
 }
 
