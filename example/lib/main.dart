@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:overlay_pop_up/overlay_communicator.dart';
 import 'package:overlay_pop_up/overlay_pop_up.dart';
 
 void main() {
+  OverlayCommunicator.init(OverlayCommunicatorType.app);
   runApp(const MyApp());
 }
 
@@ -33,11 +35,24 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        appBar: AppBar(title: const Text('Flutter overlay pop up'), backgroundColor: Colors.red[900]),
+        appBar: AppBar(
+            title: const Text('Flutter overlay pop up'),
+            backgroundColor: Colors.red[900]),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              StreamBuilder(
+                stream: OverlayCommunicator.instance.onMessage,
+                initialData: null,
+                builder: (BuildContext context, AsyncSnapshot snapshot) {
+                  return Text(
+                    snapshot.data?['mssg'] ?? '',
+                    style: const TextStyle(fontSize: 14),
+                    textAlign: TextAlign.center,
+                  );
+                },
+              ),
               Text('Is active: $isActive'),
               MaterialButton(
                 onPressed: () async {
@@ -45,8 +60,8 @@ class _MyAppState extends State<MyApp> {
                   if (permission) {
                     if (!await OverlayPopUp.isActive()) {
                       isActive = await OverlayPopUp.showOverlay(
-                        width: 300,
-                        height: 350,
+                        width: 350,
+                        height: 470,
                         screenOrientation: ScreenOrientation.portrait,
                         closeWhenTapBackButton: true,
                         isDraggable: true,
@@ -67,38 +82,46 @@ class _MyAppState extends State<MyApp> {
                   }
                 },
                 color: Colors.red[900],
-                child: const Text('Show overlay', style: TextStyle(color: Colors.white)),
+                child: const Text('Show overlay',
+                    style: TextStyle(color: Colors.white)),
               ),
               const SizedBox(height: 14),
               MaterialButton(
                 onPressed: () async {
                   if (await OverlayPopUp.isActive()) {
-                    await OverlayPopUp.sendToOverlay({'mssg': 'Hello from dart!'});
+                    await OverlayCommunicator.instance
+                        .send({'mssg': 'Hello from app!'});
                   }
                 },
                 color: Colors.red[900],
-                child: const Text('Send data', style: TextStyle(color: Colors.white)),
+                child: const Text('Send data',
+                    style: TextStyle(color: Colors.white)),
               ),
               MaterialButton(
                 onPressed: () async {
                   if (await OverlayPopUp.isActive()) {
-                    await OverlayPopUp.updateOverlaySize(width: 500, height: 500);
+                    await OverlayPopUp.updateOverlaySize(
+                        width: 500, height: 550);
                   }
                 },
                 color: Colors.red[900],
-                child: const Text('Update overlay size', style: TextStyle(color: Colors.white)),
+                child: const Text('Update overlay size',
+                    style: TextStyle(color: Colors.white)),
               ),
               MaterialButton(
                 onPressed: () async {
                   if (await OverlayPopUp.isActive()) {
                     final position = await OverlayPopUp.getOverlayPosition();
                     setState(() {
-                      overlayPosition = (position?['overlayPosition'] != null) ? position!['overlayPosition'].toString() : '';
+                      overlayPosition = (position?['overlayPosition'] != null)
+                          ? position!['overlayPosition'].toString()
+                          : '';
                     });
                   }
                 },
                 color: Colors.red[900],
-                child: const Text('Get overlay position', style: TextStyle(color: Colors.white)),
+                child: const Text('Get overlay position',
+                    style: TextStyle(color: Colors.white)),
               ),
               Text('Current position: $overlayPosition'),
             ],
@@ -115,6 +138,7 @@ class _MyAppState extends State<MyApp> {
 @pragma("vm:entry-point")
 void overlayPopUp() {
   WidgetsFlutterBinding.ensureInitialized();
+  OverlayCommunicator.init(OverlayCommunicatorType.overlay);
   runApp(const MaterialApp(
     debugShowCheckedModeBanner: false,
     home: OverlayWidget(),
@@ -135,7 +159,7 @@ class OverlayWidget extends StatelessWidget {
           children: [
             SizedBox(
               child: StreamBuilder(
-                stream: OverlayPopUp.dataListener,
+                stream: OverlayCommunicator.instance.onMessage,
                 initialData: null,
                 builder: (BuildContext context, AsyncSnapshot snapshot) {
                   return Text(
@@ -146,12 +170,22 @@ class OverlayWidget extends StatelessWidget {
                 },
               ),
             ),
+            MaterialButton(
+              onPressed: () async {
+                await OverlayCommunicator.instance
+                    .send({'mssg': 'Hello from overlay!'});
+              },
+              color: Colors.red[900],
+              child: const Text('Send data',
+                  style: TextStyle(color: Colors.white)),
+            ),
             const SizedBox(height: 10),
             FloatingActionButton(
               backgroundColor: Colors.red[900],
               elevation: 12,
               onPressed: () async => await OverlayPopUp.closeOverlay(),
-              child: const Text('X', style: TextStyle(color: Colors.white, fontSize: 20)),
+              child: const Text('X',
+                  style: TextStyle(color: Colors.white, fontSize: 20)),
             ),
           ],
         ),
