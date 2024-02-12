@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
+import android.os.Binder
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
@@ -35,8 +36,16 @@ class OverlayService : Service(), BasicMessageChannel.MessageHandler<Any?>, View
     private var channel: MethodChannel? = null
     private lateinit var overlayMessageChannel: BasicMessageChannel<Any?>
 
+    private val binder = OverlayServiceBinder()
+
     override fun onBind(intent: Intent?): IBinder? {
-        return null
+        return binder
+    }
+
+    inner class OverlayServiceBinder : Binder() {
+        fun getService(): OverlayService {
+            return this@OverlayService
+        }
     }
 
     @SuppressLint("ClickableViewAccessibility")

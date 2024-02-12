@@ -2,9 +2,12 @@ package com.requiemz.overlay_pop_up
 
 import android.app.Activity
 import android.content.Context
+import android.content.ComponentName
 import android.content.Intent
+import android.content.ServiceConnection
 import android.net.Uri
 import android.os.Build
+import android.os.IBinder
 import android.provider.Settings
 import android.view.WindowManager
 import io.flutter.FlutterInjector
@@ -28,6 +31,21 @@ class OverlayPopUpPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     private var context: Context? = null
     private var activity: Activity? = null
     private var messageChannel: BasicMessageChannel<Any?>? = null
+
+    private var overlayService: OverlayService? = null
+
+    private val serviceConnection = object : ServiceConnection {
+        override fun onServiceConnected(className: ComponentName, service: IBinder) {
+            val binder = service as OverlayService.OverlayServiceBinder
+            overlayService = binder.getService()
+            println("Service connected")
+        }
+
+        override fun onServiceDisconnected(arg0: ComponentName) {
+            overlayService = null
+            println("Service disconnected")
+        }
+    }
 
     companion object {
         const val OVERLAY_CHANNEL_NAME = "overlay_pop_up"
@@ -70,6 +88,10 @@ class OverlayPopUpPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         activity = binding.activity
+        if(OverlayService.isActive){
+            val i = Intent(context, OverlayService::class.java)
+            context?.bindService(i, serviceConnection, 0)
+        }
     }
 
     private fun requestOverlayPermission(result: Result) {
@@ -105,6 +127,8 @@ class OverlayPopUpPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             call.argument<String>("entryPointName") ?: OVERLAY_POP_UP_ENTRY_BY_DEFAULT
         if (context != null) PopUp.savePreferences(context!!)
         activity?.startService(i)
+        context?.bindService(i, serviceConnection, 0)
+
         result.success(true)
     }
 
